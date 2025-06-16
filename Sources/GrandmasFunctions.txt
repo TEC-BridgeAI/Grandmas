@@ -1,0 +1,75 @@
+**GRANDMA – Grading And Management System**
+*Essential Functions and Features*
+
+1.	Users and Roles
+Purpose: To create a user and give it its authority and roles
+	Key functions:
+    a.	registerUser(username, password, role)
+    Details: This function takes in a name and a password and registers the person into the database with their role. It uses a createStudentProfile(data) or createTeacherProfile(data) function.
+
+    b.	login(username, password)
+    Details: Retrieves the user and generates a session if the password is the same as the stored one.
+
+    c.	assignRole(userId, role)
+    Details: Changes and sets the roles (student, teacher, admin)
+
+2.	Student and Teacher Management
+Purpose: To access, store, and update information about the user
+    Key functions:
+    a.	createStudentProfile(data)
+    Details: Collects info about the student and adds a Student object in the database and assigns a user ID.
+    b.	createTeacherProfile(data)
+    Details: Collects info about the teacher and adds a Teacher object in the database and assigns a user ID.
+    c.	updateProfile (userId, updatedData)
+    Details: Changes the user’s data
+
+3.	Course and Class Management
+Purpose: Handle the courses and the teachers and students involved 
+    Key functions:
+    a.	createCourse(courseData)
+    Details: Creates a Course object with the appropriate data. Also creates a unique ID for the course.
+    b.	assignTeacherToCourse(coursed, teacherId)
+    Details: Link a teacher to a course.
+    c.	enrollStudentInCourse(coursed, studentId)
+    Details: Add a student to a course.
+    d.	removeStudentFromCourse(coursed, studentId)
+    Details: Remove a student from a course.
+
+4.	Assignment and Grading System
+Purpose: Give teachers the ability to assign work, receive work, and assign grades.
+    Key functions:
+    a.	createAssignment(coursed, assignmentData)
+    Details: Creates an Assignment object in a course with information for the student. Also creates an assignment Id to help identify the assignment.
+    b.	submitAssignment (studentId, assignmentId, file)
+    Details: For the student to insert a file and submit assignment.
+    c.	gradeAssignment(assignmentId, studentId, grade)
+    Details: Allows the teacher to grade the assignment that the student submitted.
+    d.	getGradesForStudent(studentID)
+    Details: Returns the grades the student has received for all their courses.
+
+5.	Grade Calculation and Reporting 
+Purpose: Calculate the students’ grades and generate report cards
+    Key functions:
+    a.	calculateFinalGrade(studentId, courseId)
+    Details: Returns the final grades for a student in a course. Apply the different percents of assignments (e.g., exams 40%, homework, 20%).
+    b.	generateReportCard(studentId)
+    Details: Uses the calculateFinalGrade(studentId, courseId) and returns a list that can be formatted into a printable or downloadable report with all a student’s final grades for their courses.
+    
+6.	Administrative Tools
+    Purpose: Tools to help admins manage the system
+    a.	backupDatabase()
+    Details: Saves a copy of all the system data in case of a crash or corruption.
+    b.	restoreDatabase(backupFile)
+    Details: Reloads the backup.
+    c.	setGradingScale(scaleData)
+    Details: Modifies a list with the different thresholds (e.g., A = 90-100, b + 80 – 89)
+
+7.	Audit and Logging
+Purpose: Tracks activities for security purposes
+    a.	logUserAction(userId, actionType, timestamp)
+    Details: Tracks the user’s action. Stores this in a log file or table.
+    b.	getAuditLog(userId)
+    Details: Allows the admin to see the audit logs with the user’s activity.
+
+
+
