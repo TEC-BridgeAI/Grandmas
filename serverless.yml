@@ -1,0 +1,412 @@
+service: grandmas-grading-system
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  environment:
+    DB_HOST: ${ssm:/grandmas/${self:provider.stage}/db/host}
+    DB_PORT: ${ssm:/grandmas/${self:provider.stage}/db/port}
+    DB_NAME: ${ssm:/grandmas/${self:provider.stage}/db/name}
+    DB_USER: ${ssm:/grandmas/${self:provider.stage}/db/user}
+    DB_PASSWORD: ${ssm:/grandmas/${self:provider.stage}/db/password}
+    JWT_SECRET: ${ssm:/grandmas/${self:provider.stage}/jwt/secret}
+    S3_BUCKET: ${self:custom.s3Bucket}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:DeleteObject
+          Resource: "arn:aws:s3:::${self:custom.s3Bucket}/*"
+        - Effect: Allow
+          Action:
+            - ssm:GetParameter
+          Resource: "arn:aws:ssm:${self:provider.region}:*:parameter/grandmas/${self:provider.stage}/*"
+
+custom:
+  s3Bucket: ${self:service}-${self:provider.stage}-uploads
+  customDomain:
+    domainName: api.grandmas-grading.com
+    basePath: ${self:provider.stage}
+    stage: ${self:provider.stage}
+    createRoute53Record: true
+  prune:
+    automatic: true
+    number: 3
+
+functions:
+  # Auth functions
+  registerUser:
+    handler: backend/auth/user_functions.registerUser
+    events:
+      - http:
+          path: /auth/register
+          method: post
+          cors: true
+
+  login:
+    handler: backend/auth/user_functions.login
+    events:
+      - http:
+          path: /auth/login
+          method: post
+          cors: true
+
+  assignRole:
+    handler: backend/auth/user_functions.assignRole
+    events:
+      - http:
+          path: /auth/role
+          method: put
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  getUserProfile:
+    handler: backend/auth/user_functions.getUserProfile
+    events:
+      - http:
+          path: /users/{userId}
+          method: get
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  updateProfile:
+    handler: backend/auth/user_functions.updateProfile
+    events:
+      - http:
+          path: /users/{userId}
+          method: put
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # Course functions
+  createCourse:
+    handler: backend/courses/course_functions.createCourse
+    events:
+      - http:
+          path: /courses
+          method: post
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  assignTeacherToCourse:
+    handler: backend/courses/course_functions.assignTeacherToCourse
+    events:
+      - http:
+          path: /courses/{courseId}/teachers
+          method: post
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  enrollStudentInCourse:
+    handler: backend/courses/course_functions.enrollStudentInCourse
+    events:
+      - http:
+          path: /courses/{courseId}/students
+          method: post
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  removeStudentFromCourse:
+    handler: backend/courses/course_functions.removeStudentFromCourse
+    events:
+      - http:
+          path: /courses/{courseId}/students/{studentId}
+          method: delete
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # Assignment functions
+  createAssignment:
+    handler: backend/assignments/assignment_functions.createAssignment
+    events:
+      - http:
+          path: /courses/{courseId}/assignments
+          method: post
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  submitAssignment:
+    handler: backend/assignments/assignment_functions.submitAssignment
+    events:
+      - http:
+          path: /assignments/{assignmentId}/submit
+          method: post
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # Question functions
+  createQuestion:
+    handler: backend/assignments/question_processor.createQuestion
+    events:
+      - http:
+          path: /assignments/{assignmentId}/questions
+          method: post
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  submitQuestionResponse:
+    handler: backend/assignments/question_processor.submitQuestionResponse
+    events:
+      - http:
+          path: /submissions/{submissionId}/responses
+          method: post
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  uploadResponseFile:
+    handler: backend/assignments/question_processor.uploadResponseFile
+    events:
+      - http:
+          path: /submissions/{submissionId}/files
+          method: post
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  getAssignmentQuestions:
+    handler: backend/assignments/question_processor.getAssignmentQuestions
+    events:
+      - http:
+          path: /assignments/{assignmentId}/questions
+          method: get
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  getStudentResponses:
+    handler: backend/assignments/question_processor.getStudentResponses
+    events:
+      - http:
+          path: /submissions/{submissionId}/responses
+          method: get
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # Grading functions
+  gradeSubmission:
+    handler: backend/grading/grading_engine.gradeSubmission
+    events:
+      - http:
+          path: /submissions/{submissionId}/grade
+          method: post
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  manualGradeQuestion:
+    handler: backend/grading/grading_engine.manualGradeQuestion
+    events:
+      - http:
+          path: /responses/{responseId}/grade
+          method: post
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  calculateFinalGrade:
+    handler: backend/grading/grading_engine.calculateFinalGrade
+    events:
+      - http:
+          path: /courses/{courseId}/students/{studentId}/grade
+          method: post
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # Admin functions
+  backupDatabase:
+    handler: backend/admin/admin_functions.backupDatabase
+    events:
+      - http:
+          path: /admin/backup
+          method: post
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  restoreDatabase:
+    handler: backend/admin/admin_functions.restoreDatabase
+    events:
+      - http:
+          path: /admin/restore
+          method: post
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  setGradingScale:
+    handler: backend/admin/admin_functions.setGradingScale
+    events:
+      - http:
+          path: /admin/grading-scale
+          method: post
+          cors: true
+          authorizer:
+            name: jwtAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+resources:
+  Resources:
+    # S3 bucket for file uploads
+    UploadsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.s3Bucket}
+        CorsConfiguration:
+          CorsRules:
+            - AllowedHeaders:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+              AllowedOrigins:
+                - '*'
+              MaxAge: 3000
+
+    # Cognito User Pool
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: ${self:service}-${self:provider.stage}-user-pool
+        AutoVerifiedAttributes:
+          - email
+        UsernameAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireNumbers: true
+            RequireSymbols: false
+            RequireUppercase: true
+
+    # Cognito User Pool Client
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: ${self:service}-${self:provider.stage}-client
+        UserPoolId: !Ref CognitoUserPool
+        ExplicitAuthFlows:
+          - ALLOW_USER_PASSWORD_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+        GenerateSecret: false
+
+    # Cognito Identity Pool
+    CognitoIdentityPool:
+      Type: AWS::Cognito::IdentityPool
+      Properties:
+        IdentityPoolName: ${self:service}${self:provider.stage}IdentityPool
+        AllowUnauthenticatedIdentities: false
+        CognitoIdentityProviders:
+          - ClientId: !Ref CognitoUserPoolClient
+            ProviderName: !GetAtt CognitoUserPool.ProviderName
+
+    # IAM Role for authenticated users
+    CognitoAuthRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Federated: cognito-identity.amazonaws.com
+              Action: sts:AssumeRoleWithWebIdentity
+              Condition:
+                StringEquals:
+                  cognito-identity.amazonaws.com:aud: !Ref CognitoIdentityPool
+                ForAnyValue:StringLike:
+                  cognito-identity.amazonaws.com:amr: authenticated
+        Policies:
+          - PolicyName: CognitoAuthorizedPolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:PutObject
+                    - s3:GetObject
+                  Resource: !Join ['', ['arn:aws:s3:::', !Ref UploadsBucket, '/private/${cognito-identity.amazonaws.com:sub}/*']]
+
+    # Attach IAM Role to Identity Pool
+    IdentityPoolRoleAttachment:
+      Type: AWS::Cognito::IdentityPoolRoleAttachment
+      Properties:
+        IdentityPoolId: !Ref CognitoIdentityPool
+        Roles:
+          authenticated: !GetAtt CognitoAuthRole.Arn
+
+  Outputs:
+    UserPoolId:
+      Value: !Ref CognitoUserPool
+    UserPoolClientId:
+      Value: !Ref CognitoUserPoolClient
+    IdentityPoolId:
+      Value: !Ref CognitoIdentityPool
+    UploadsBucketName:
+      Value: !Ref UploadsBucket
+
+plugins:
+  - serverless-offline
+  - serverless-domain-manager
+  - serverless-prune-plugin
