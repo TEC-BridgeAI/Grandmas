@@ -1,5 +1,8 @@
 # GRANDMAS - Grading And Management System
 
+**Open Source**  
+This project is open-source and licensed under the [Apache License 2.0](LICENSE). The source code is available at: [https://github.com/TEC-BridgeAI/grandmas](https://github.com/TEC-BridgeAI/grandmas)
+
 A comprehensive grading and management system that can handle various question types and input methods.
 
 ## Features
